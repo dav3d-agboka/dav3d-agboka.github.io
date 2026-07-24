@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>D-Swift Transport Service — Ho, Ghana</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --orange:#E85D04; --orange-dark:#C44B02; --orange-light:rgba(232,93,4,0.12);
+  --dark:#0F1117; --card:#1A1D26; --card2:#22253A;
+  --text:#F0F0F5; --muted:#8A8AA8; --border:rgba(255,255,255,0.07);
+  --green:#22C55E; --red:#EF4444; --blue:#3B82F6; --yellow:#EAB308;
+  --radius:14px; --font:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0a0a12;display:flex;align-items:center;justify-content:center;font-family:var(--font)}
+#phone-shell{
+  width:390px;height:844px;background:var(--dark);border-radius:44px;overflow:hidden;
+  position:relative;border:2px solid rgba(255,255,255,0.1);
+  box-shadow:0 40px 80px rgba(0,0,0,0.7),0 0 0 1px rgba(255,255,255,0.05);
+  display:flex;flex-direction:column;
+}
+/* STATUS BAR */
+.sb{height:44px;background:var(--dark);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;z-index:100}
+.sb-time{font-size:15px;font-weight:600;color:var(--text)}
+.sb-icons{display:flex;gap:5px;align-items:center;font-size:12px;color:var(--text)}
+/* SCREEN SYSTEM */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--dark);overflow:hidden}
+.screen.active{display:flex}
+/* SCROLLABLE CONTENT */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scroll::-webkit-scrollbar{width:0}
+/* HEADER */
+.hdr{height:56px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 18px;gap:12px;flex-shrink:0}
+.hdr-back{font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px 4px 0;line-height:1}
+.hdr-logo{width:36px;height:36px;background:var(--orange);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;letter-spacing:-.5px;flex-shrink:0}
+.hdr-title{font-size:16px;font-weight:600;color:var(--text)}
+.hdr-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* AVATAR */
+.ava{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;cursor:pointer;flex-shrink:0}
+/* BOTTOM NAV */
+.bnav{height:72px;background:var(--card);border-top:1px solid var(--border);display:flex;align-items:center;flex-shrink:0}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:10px 0}
+.bn-icon{font-size:22px;color:var(--muted)}
+.bn.on .bn-icon{color:var(--orange)}
+.bn-lbl{font-size:9px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.bn.on .bn-lbl{color:var(--orange)}
+/* BUTTONS */
+.btn{width:100%;padding:15px;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.01em;transition:opacity .15s}
+.btn:active{opacity:.8}
+.btn-p{background:var(--orange);color:#fff}
+.btn-s{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-d{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+/* FORM */
+.pad{padding:16px 18px}
+.field{margin-bottom:14px}
+.flbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.finp{width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;appearance:none;-webkit-appearance:none}
+.finp:focus{border-color:var(--orange)}
+.finp::placeholder{color:var(--muted)}
+.finp option{background:var(--card)}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.card+.card,.card+.vcard,.vcard+.card{margin-top:10px}
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600}
+.badge-g{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.badge-o{background:var(--orange-light);color:var(--orange);border:1px solid rgba(232,93,4,.3)}
+.badge-y{background:rgba(234,179,8,.1);color:var(--yellow);border:1px solid rgba(234,179,8,.25)}
+.badge-r{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+/* PULSE */
+.pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pd 1.6s infinite}
+@keyframes pd{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.6)}}
+/* DIVIDER */
+.div{height:1px;background:var(--border);margin:12px 0}
+/* NOTIF CARD */
+.notif{background:var(--orange-light);border:1px solid rgba(232,93,4,.25);border-radius:var(--radius);padding:13px;display:flex;gap:10px;margin-bottom:14px}
+.notif-icon{font-size:20px;flex-shrink:0}
+.notif-txt{font-size:12px;color:var(--text);line-height:1.6}
+.notif-txt strong{color:var(--orange)}
+/* SECTION TITLE */
+.sec{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px}
+.sec-s{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+/* MAP */
+#map,#map2,#map3{width:100%;height:100%;z-index:1}
+.map-wrap{flex:1;position:relative;overflow:hidden}
+/* SEARCH BAR OVERLAY */
+.srch-bar{position:absolute;top:10px;left:12px;right:12px;z-index:400;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.srch-inp{background:none;border:none;outline:none;color:var(--text);font-size:14px;flex:1;font-family:var(--font)}
+.srch-inp::placeholder{color:var(--muted)}
+/* MAP CONTROLS */
+.map-ctrl{position:absolute;right:12px;top:50%;transform:translateY(-50%);z-index:400;display:flex;flex-direction:column;gap:6px}
+.mc-btn{width:36px;height:36px;background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:18px;color:var(--text)}
+/* BOTTOM SHEET */
+.bsheet{background:var(--card);border-radius:24px 24px 0 0;padding:14px 18px 0;flex-shrink:0;box-shadow:0 -4px 30px rgba(0,0,0,.4)}
+.bs-handle{width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:0 auto 14px}
+/* QUICK GRID */
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.qbtn{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.qbtn:active{background:var(--orange-light)}
+.qi{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;background:var(--orange-light)}
+.ql{font-size:13px;font-weight:600;color:var(--text)}
+.qs{font-size:11px;color:var(--muted);margin-top:2px}
+/* DRIVER LIST */
+.dcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.d-ava{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.d-name{font-size:14px;font-weight:600;color:var(--text)}
+.d-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.d-rating{font-size:12px;color:var(--muted);margin-top:3px}
+.d-right{margin-left:auto;text-align:right;flex-shrink:0}
+.d-status{font-size:11px;font-weight:600}
+.d-eta{font-size:11px;color:var(--muted);margin-top:3px}
+/* VEHICLE OPTIONS */
+.vcard{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.vcard.sel{border-color:var(--orange);background:var(--orange-light)}
+.v-icon{font-size:32px;width:52px;text-align:center}
+.v-name{font-size:14px;font-weight:600;color:var(--text)}
+.v-cap{font-size:12px;color:var(--muted);margin-top:3px}
+.v-price{margin-left:auto;text-align:right}
+.v-amt{font-size:17px;font-weight:700;color:var(--orange)}
+.v-eta{font-size:11px;color:var(--muted);margin-top:3px}
+/* FARE TABLE */
+.ftbl{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px;margin-bottom:14px}
+.frow{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)}
+.frow:last-child{border:none;padding-top:13px;margin-top:4px}
+.flabel{font-size:13px;color:var(--muted)}
+.fval{font-size:13px;font-weight:600;color:var(--text)}
+.fval.big{font-size:20px;color:var(--orange)}
+/* TRACKING */
+.track-info{background:var(--card);border-radius:24px 24px 0 0;padding:16px 18px;flex-shrink:0;box-shadow:0 -4px 30px rgba(0,0,0,.4)}
+.prog-bar{background:rgba(255,255,255,.08);border-radius:4px;height:5px;overflow:hidden;margin:8px 0}
+.prog-fill{height:100%;background:var(--orange);border-radius:4px;animation:pf 4s ease-in-out infinite}
+@keyframes pf{0%{width:15%}50%{width:75%}100%{width:15%}}
+/* HISTORY */
+.hitem{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid var(--border)}
+.route-pt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:3px 0}
+.rdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.rline{width:9px;height:14px;border-left:2px dashed rgba(255,255,255,.12);margin-left:3.5px}
+/* PAYMENT */
+.pay-opt{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:10px;transition:border-color .15s}
+.pay-opt.sel{border-color:var(--orange)}
+/* STAT CARDS */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.scard{background:var(--card);border-radius:var(--radius);padding:14px;border:1px solid var(--border)}
+.slbl{font-size:11px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.sval{font-size:24px;font-weight:800;color:var(--text)}
+.sval.accent{color:var(--orange)}
+/* TABS */
+.tabs{display:flex;background:var(--card2);border-radius:12px;padding:4px;margin-bottom:16px}
+.tab{flex:1;padding:9px;text-align:center;font-size:12px;font-weight:600;color:var(--muted);border-radius:9px;cursor:pointer;transition:all .15s}
+.tab.on{background:var(--orange);color:#fff}
+/* TOGGLE */
+.trow{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}
+.trow:last-child{border:none}
+.trow-left .tl{font-size:14px;color:var(--text)}
+.trow-left .ts{font-size:12px;color:var(--muted);margin-top:2px}
+.toggle{width:44px;height:26px;background:var(--card2);border-radius:13px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--orange)}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left .2s}
+.toggle.on::after{left:21px}
+/* PROGRESS STEPS */
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:flex;gap:12px;align-items:flex-start;padding:12px 0}
+.step-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;margin-top:2px}
+.step-done{background:rgba(34,197,94,.15);color:var(--green);border:1.5px solid rgba(34,197,94,.4)}
+.step-cur{background:var(--orange-light);color:var(--orange);border:1.5px solid rgba(232,93,4,.5)}
+.step-todo{background:var(--card2);color:var(--muted);border:1.5px solid var(--border)}
+.step-line{width:2px;height:20px;background:var(--border);margin-left:13px}
+/* SOS */
+.sos-btn{width:160px;height:160px;border-radius:50%;background:rgba(239,68,68,.9);border:5px solid rgba(239,68,68,.3);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin:0 auto;font-weight:800;font-size:16px;transition:transform .1s;box-shadow:0 0 0 0 rgba(239,68,68,.4);animation:sos-pulse 2.5s infinite}
+.sos-btn:active{transform:scale(.95)}
+@keyframes sos-pulse{0%{box-shadow:0 0 0 0 rgba(239,68,68,.4)}70%{box-shadow:0 0 0 20px rgba(239,68,68,0)}100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}}
+/* DRIVER DASHBOARD */
+.earn-card{background:linear-gradient(135deg,#1a2a0a,#0d1a06);border:1px solid rgba(34,197,94,.2);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.earn-amt{font-size:36px;font-weight:800;color:var(--green);margin:6px 0}
+/* NOTIF TOAST */
+#toast{position:absolute;bottom:88px;left:18px;right:18px;background:var(--card);border:1px solid var(--orange);border-radius:var(--radius);padding:12px 15px;z-index:999;display:none;animation:toast-in .3s ease}
+@keyframes toast-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.toast-t{font-size:13px;font-weight:600;color:var(--text)}
+.toast-s{font-size:12px;color:var(--muted);margin-top:3px}
+/* RATING STARS */
+.stars{display:flex;gap:6px}
+.star{font-size:28px;cursor:pointer;filter:grayscale(1);transition:filter .15s}
+.star.on{filter:none}
+/* WELCOME */
+.hero{padding:40px 24px 24px;text-align:center}
+.hero-logo{width:80px;height:80px;background:var(--orange);border-radius:28px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:26px;color:#fff;margin:0 auto 20px;letter-spacing:-1px;box-shadow:0 8px 32px rgba(232,93,4,.4)}
+.hero-t{font-size:28px;font-weight:800;color:var(--text);margin-bottom:10px;line-height:1.2}
+.hero-s{font-size:14px;color:var(--muted);line-height:1.7}
+.hero-stats{display:flex;justify-content:center;gap:0;margin:24px 0}
+.hstat{flex:1;text-align:center;padding:0 12px}
+.hstat+.hstat{border-left:1px solid var(--border)}
+.hstat-v{font-size:22px;font-weight:800;color:var(--orange)}
+.hstat-l{font-size:11px;color:var(--muted);margin-top:3px}
+.tag-line{display:flex;align-items:center;gap:10px;margin:14px 0}
+.tl-line{flex:1;height:1px;background:var(--border)}
+.tl-txt{font-size:12px;color:var(--muted)}
+/* CHAT / SUPPORT */
+.msg{margin-bottom:12px}
+.msg-b{display:inline-block;max-width:78%;border-radius:14px;padding:10px 13px;font-size:13px;line-height:1.5}
+.msg-in .msg-b{background:var(--card2);color:var(--text);border-bottom-left-radius:4px}
+.msg-out{text-align:right}
+.msg-out .msg-b{background:var(--orange);color:#fff;border-bottom-right-radius:4px}
+.msg-time{font-size:10px;color:var(--muted);margin-top:4px;padding:0 4px}
+/* MAP LEAFLET OVERRIDES */
+.leaflet-container{background:#1a2744}
+.leaflet-tile{filter:brightness(0.7) saturate(0.8) hue-rotate(180deg) invert(0.9)}
+/* PROMO */
+.promo{background:linear-gradient(135deg,rgba(232,93,4,.2),rgba(247,127,0,.1));border:1px solid rgba(232,93,4,.3);border-radius:var(--radius);padding:16px;margin-bottom:14px;display:flex;align-items:center;gap:14px}
+/* ICON BUTTONS ROW */
+.icon-row{display:flex;gap:10px}
+.ibtn{width:42px;height:42px;background:var(--card2);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:17px;flex-shrink:0}
+/* ADMIN */
+.admin-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center}
+.admin-stat-v{font-size:28px;font-weight:800;color:var(--text);margin:4px 0}
+.admin-stat-l{font-size:11px;color:var(--muted)}
+.adgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+/* SCHEDULE */
+.sched-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px;margin-bottom:10px;display:flex;gap:12px;align-items:center}
+/* PROMO CODE */
+.promo-input{display:flex;gap:8px}
+.promo-input .finp{flex:1}
+.promo-input .btn{width:auto;padding:13px 18px;flex-shrink:0}
+/* WAVE */
+.wave{display:flex;gap:3px;align-items:center}
+.wb{width:4px;border-radius:2px;background:var(--orange);animation:wave .8s ease-in-out infinite}
+.wb:nth-child(2){animation-delay:.1s;height:14px}
+.wb:nth-child(3){animation-delay:.2s;height:20px}
+.wb:nth-child(4){animation-delay:.3s;height:16px}
+.wb:nth-child(5){animation-delay:.4s;height:10px}
+@keyframes wave{0%,100%{height:8px}50%{height:22px}}
+/* ONBOARDING DOTS */
+.dots{display:flex;gap:7px;justify-content:center;margin-top:20px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.dot.on{background:var(--orange);width:24px;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="phone-shell">
+
+<!-- STATUS BAR -->
+<div class="sb">
+  <span class="sb-time" id="sb-time">9:41</span>
+  <div class="sb-icons"><span id="signal">●●●●</span><span>WiFi</span><span>🔋</span></div>
+</div>
+
+<!-- TOAST -->
+<div id="toast">
+  <div class="toast-t" id="toast-t"></div>
+  <div class="toast-s" id="toast-s"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 1: SPLASH / ONBOARDING -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen active" id="s-splash">
+  <div class="scroll pad">
+    <div class="hero">
+      <div class="hero-logo">DS</div>
+      <div class="hero-t">D-Swift Transport Service</div>
+      <div class="hero-s">Fast, safe, and reliable rides all across Ho and the Volta Region. Your city, your pace.</div>
+      <div class="hero-stats">
+        <div class="hstat"><div class="hstat-v">24/7</div><div class="hstat-l">Always On</div></div>
+        <div class="hstat"><div class="hstat-v">120+</div><div class="hstat-l">Drivers</div></div>
+        <div class="hstat"><div class="hstat-v">4.8★</div><div class="hstat-l">Rating</div></div>
+      </div>
+    </div>
+    <!-- Onboarding slides preview -->
+    <div style="background:var(--card);border-radius:20px;padding:20px;text-align:center;margin-bottom:20px;border:1px solid var(--border)">
+      <div style="font-size:40px;margin-bottom:10px">📍</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">Real-time GPS Tracking</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6">Track your driver live on the map from pickup to destination. Share your trip with family for safety.</div>
+      <div class="dots">
+        <div class="dot on"></div><div class="dot"></div><div class="dot"></div>
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="go('s-register-user')" style="margin-bottom:10px">Get Started — Create Account</button>
+    <div class="tag-line"><div class="tl-line"></div><span class="tl-txt">have an account?</span><div class="tl-line"></div></div>
+    <button class="btn btn-s" onclick="go('s-home')" style="margin-bottom:10px">Log In</button>
+    <button class="btn btn-s" onclick="go('s-register-driver')">Register as a Driver 🚗</button>
+    <div style="text-align:center;margin-top:16px;font-size:11px;color:var(--muted)">Ho, Volta Region, Ghana 🇬🇭</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 2: RIDER REGISTRATION -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-register-user">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-splash')">←</span>
+    <div><div class="hdr-title">Create Account</div><div class="hdr-sub">Rider Registration</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="sec">Join D-Swift</div>
+    <div class="sec-s">Book rides across Ho in seconds</div>
+    <div class="notif"><span class="notif-icon">📱</span>
+      <div class="notif-txt">A <strong>6-digit OTP</strong> will be sent to your number via SMS to verify your account.</div>
+    </div>
+    <div class="field"><div class="flbl">Full Name</div><input class="finp" type="text" placeholder="e.g. Kofi Mensah" id="r-name"></div>
+    <div class="field"><div class="flbl">Phone Number</div><input class="finp" type="tel" placeholder="+233 24 000 0000" id="r-phone"></div>
+    <div class="field"><div class="flbl">Email Address (optional)</div><input class="finp" type="email" placeholder="kofi@email.com" id="r-email"></div>
+    <div class="field"><div class="flbl">Area in Ho</div>
+      <select class="finp" id="r-area">
+        <option value="">Select your area</option>
+        <option>Ho Central</option><option>Ho Dome</option><option>Bankoe</option>
+        <option>Kpodzi</option><option>Ahoe</option><option>Shimekor</option>
+        <option>Mawuli Estate</option><option>Fiave</option><option>Agortime</option>
+      </select>
+    </div>
+    <div class="field"><div class="flbl">Gender</div>
+      <select class="finp">
+        <option>Select gender</option><option>Male</option><option>Female</option><option>Prefer not to say</option>
+      </select>
+    </div>
+    <div class="field"><div class="flbl">Password</div><input class="finp" type="password" placeholder="Create a strong password"></div>
+    <div class="field"><div class="flbl">Confirm Password</div><input class="finp" type="password" placeholder="Re-enter your password"></div>
+    <div style="margin-bottom:16px;display:flex;align-items:flex-start;gap:8px">
+      <input type="checkbox" id="terms" style="margin-top:3px;accent-color:var(--orange)">
+      <label for="terms" style="font-size:12px;color:var(--muted);line-height:1.6">I agree to D-Swift's <span style="color:var(--orange)">Terms of Service</span> and <span style="color:var(--orange)">Privacy Policy</span></label>
+    </div>
+    <button class="btn btn-p" onclick="go('s-otp')" style="margin-bottom:10px">Send Verification Code →</button>
+    <div style="text-align:center"><span style="font-size:12px;color:var(--muted)">Already have an account? </span><span style="font-size:12px;color:var(--orange);cursor:pointer" onclick="go('s-home')">Log in</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 3: OTP VERIFICATION -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-otp">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-register-user')">←</span>
+    <div><div class="hdr-title">Verify Phone</div><div class="hdr-sub">OTP sent</div></div>
+  </div>
+  <div class="scroll pad" style="display:flex;flex-direction:column;align-items:center;padding-top:40px">
+    <div style="font-size:56px;margin-bottom:20px">📲</div>
+    <div class="sec" style="text-align:center">Enter your OTP</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin:8px 0 28px;line-height:1.6">We sent a 6-digit code to<br><strong style="color:var(--text)">+233 24 000 0000</strong></div>
+    <div style="display:flex;gap:10px;margin-bottom:28px" id="otp-boxes">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid var(--border);border-radius:12px;color:var(--text);outline:none" maxlength="1">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid var(--border);border-radius:12px;color:var(--text);outline:none" maxlength="1">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid var(--border);border-radius:12px;color:var(--text);outline:none" maxlength="1" value="7">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid rgba(232,93,4,.6);border-radius:12px;color:var(--text);outline:none" maxlength="1" value="3">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid var(--border);border-radius:12px;color:var(--text);outline:none" maxlength="1">
+      <input style="width:46px;height:56px;text-align:center;font-size:22px;font-weight:700;background:var(--card);border:1.5px solid var(--border);border-radius:12px;color:var(--text);outline:none" maxlength="1">
+    </div>
+    <button class="btn btn-p" onclick="go('s-home')" style="width:100%;margin-bottom:14px">Verify & Continue ✓</button>
+    <div style="font-size:12px;color:var(--muted)">Didn't receive it? <span style="color:var(--orange);cursor:pointer" id="resend-btn">Resend in <span id="timer">0:59</span></span></div>
+    <div style="margin-top:20px;text-align:center;font-size:12px;color:var(--muted)">Wrong number? <span style="color:var(--orange);cursor:pointer" onclick="go('s-register-user')">Change</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 4: DRIVER REGISTRATION -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-register-driver">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-splash')">←</span>
+    <div><div class="hdr-title">Driver Registration</div><div class="hdr-sub">Join the D-Swift fleet</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="notif"><span class="notif-icon">🚗</span>
+      <div class="notif-txt">Earn with <strong>120+ D-Swift drivers</strong> across Ho. Approval takes 24–48 hours after document review. You'll be notified via SMS.</div>
+    </div>
+    <div class="tabs" id="dr-tabs">
+      <div class="tab on" onclick="drTab(0)">Personal</div>
+      <div class="tab" onclick="drTab(1)">Vehicle</div>
+      <div class="tab" onclick="drTab(2)">Documents</div>
+    </div>
+    <!-- PERSONAL -->
+    <div id="dr-panel-0">
+      <div class="field"><div class="flbl">Full Legal Name</div><input class="finp" placeholder="As on Ghana Card"></div>
+      <div class="field"><div class="flbl">Phone Number</div><input class="finp" type="tel" placeholder="+233 24 000 0000"></div>
+      <div class="field"><div class="flbl">Email Address</div><input class="finp" type="email" placeholder="driver@email.com"></div>
+      <div class="field"><div class="flbl">Ghana Card Number</div><input class="finp" placeholder="GHA-XXXXXXXX-X"></div>
+      <div class="field"><div class="flbl">Date of Birth</div><input class="finp" type="date"></div>
+      <div class="field"><div class="flbl">Address in Ho</div>
+        <select class="finp">
+          <option>Select area</option><option>Ho Central</option><option>Ho Dome</option><option>Bankoe</option>
+          <option>Kpodzi</option><option>Ahoe</option><option>Shimekor</option><option>Mawuli Estate</option>
+        </select>
+      </div>
+      <button class="btn btn-p" onclick="drTab(1)">Next: Vehicle Info →</button>
+    </div>
+    <!-- VEHICLE -->
+    <div id="dr-panel-1" style="display:none">
+      <div class="field"><div class="flbl">Vehicle Type</div>
+        <select class="finp">
+          <option>Select type</option>
+          <option>Motorcycle (Okada)</option><option>Tricycle (Pragya)</option>
+          <option>Saloon Car</option><option>SUV / 4x4</option><option>Minibus</option><option>Trotro</option>
+        </select>
+      </div>
+      <div class="field"><div class="flbl">Vehicle Make & Model</div><input class="finp" placeholder="e.g. Toyota Corolla 2019"></div>
+      <div class="field"><div class="flbl">Registration Number</div><input class="finp" placeholder="e.g. GR 1234-24"></div>
+      <div class="field"><div class="flbl">Colour</div><input class="finp" placeholder="e.g. Silver"></div>
+      <div class="field"><div class="flbl">Passenger Capacity</div>
+        <select class="finp"><option>1</option><option>2</option><option selected>4</option><option>7</option><option>10</option></select>
+      </div>
+      <div class="field"><div class="flbl">Air Conditioning</div>
+        <select class="finp"><option>Yes</option><option>No</option></select>
+      </div>
+      <div class="field"><div class="flbl">Operating Zone</div>
+        <select class="finp">
+          <option>Entire Ho Municipality</option><option>Ho Central Only</option><option>Ho East</option><option>Ho West</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-s" onclick="drTab(0)" style="flex:1">← Back</button>
+        <button class="btn btn-p" onclick="drTab(2)" style="flex:2">Next: Documents →</button>
+      </div>
+    </div>
+    <!-- DOCUMENTS -->
+    <div id="dr-panel-2" style="display:none">
+      <div class="field"><div class="flbl">Driver's License Number</div><input class="finp" placeholder="DL-XXXXXXXXX"></div>
+      <div class="field"><div class="flbl">License Expiry Date</div><input class="finp" type="date"></div>
+      <div class="field"><div class="flbl">Roadworthy Certificate No.</div><input class="finp" placeholder="RW-XXXXXXXXX"></div>
+      <div class="field"><div class="flbl">Insurance Policy No.</div><input class="finp" placeholder="INS-XXXXXXXXX"></div>
+      <div style="margin-bottom:14px">
+        <div class="flbl" style="margin-bottom:10px">Upload Documents</div>
+        <div style="background:var(--card);border:1.5px dashed rgba(232,93,4,.4);border-radius:var(--radius);padding:20px;text-align:center;margin-bottom:8px;cursor:pointer">
+          <div style="font-size:28px;margin-bottom:6px">📷</div>
+          <div style="font-size:13px;color:var(--orange);font-weight:600">Tap to upload Ghana Card</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Front & back (JPG, PNG)</div>
+        </div>
+        <div style="background:var(--card);border:1.5px dashed rgba(232,93,4,.4);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer">
+          <div style="font-size:28px;margin-bottom:6px">🪪</div>
+          <div style="font-size:13px;color:var(--orange);font-weight:600">Tap to upload Driver's License</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Both sides required</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-s" onclick="drTab(1)" style="flex:1">← Back</button>
+        <button class="btn btn-p" onclick="go('s-driver-pending')" style="flex:2">Submit Application ✓</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 5: DRIVER APPLICATION PENDING -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-driver-pending">
+  <div class="scroll pad" style="display:flex;flex-direction:column;align-items:center;padding-top:40px">
+    <div style="font-size:64px;margin-bottom:20px">🎉</div>
+    <div class="sec" style="text-align:center;margin-bottom:8px">Application Submitted!</div>
+    <div class="sec-s" style="text-align:center">Your documents are under review. We'll send you an SMS within <strong style="color:var(--text)">24–48 hours</strong>.</div>
+    <div class="card" style="width:100%;margin-bottom:24px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Review Progress</div>
+      <div class="steps">
+        <div class="step"><div class="step-dot step-done">✓</div><div><div style="font-size:13px;font-weight:600;color:var(--text)">Documents received</div><div style="font-size:12px;color:var(--muted)">Just now</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-dot step-cur">⟳</div><div><div style="font-size:13px;font-weight:600;color:var(--text)">License verification</div><div style="font-size:12px;color:var(--muted)">In progress</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-dot step-todo">○</div><div><div style="font-size:13px;font-weight:600;color:var(--muted)">Background check</div><div style="font-size:12px;color:var(--muted)">Pending</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-dot step-todo">○</div><div><div style="font-size:13px;font-weight:600;color:var(--muted)">Account activation</div><div style="font-size:12px;color:var(--muted)">Pending</div></div></div>
+      </div>
+    </div>
+    <div class="card" style="width:100%;margin-bottom:20px">
+      <div style="font-size:13px;color:var(--text);margin-bottom:10px;font-weight:600">What happens next?</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8">
+        📞 A D-Swift agent may call for verification<br>
+        📨 SMS notification once approved<br>
+        🚗 Start earning from your first trip<br>
+        💸 Payments every Friday via MoMo
+      </div>
+    </div>
+    <button class="btn btn-p" onclick="go('s-splash')" style="margin-bottom:10px">Back to Home</button>
+    <button class="btn btn-s" onclick="go('s-support')">Contact Support</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 6: HOME MAP (RIDER) -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-home">
+  <div class="hdr">
+    <div class="hdr-logo">DS</div>
+    <div>
+      <div class="hdr-title">D-Swift</div>
+      <div class="hdr-sub">Ho, Volta Region 🇬🇭</div>
+    </div>
+    <div class="hdr-right">
+      <div class="badge badge-g"><div class="pulse-dot"></div>Located</div>
+      <div class="ava" style="background:linear-gradient(135deg,#E85D04,#f77f00)" onclick="go('s-profile')">KM</div>
+    </div>
+  </div>
+  <div class="map-wrap">
+    <div id="map"></div>
+    <!-- Search overlay -->
+    <div class="srch-bar" onclick="go('s-search')">
+      <span style="font-size:18px;color:var(--muted)">🔍</span>
+      <input class="srch-inp" placeholder="Where do you want to go?" readonly>
+      <span style="font-size:18px;color:var(--orange);cursor:pointer">🎤</span>
+    </div>
+    <div class="map-ctrl">
+      <div class="mc-btn" onclick="mapZoomIn()">+</div>
+      <div class="mc-btn" onclick="mapZoomOut()">−</div>
+      <div class="mc-btn" onclick="mapCenter()">◎</div>
+    </div>
+  </div>
+  <div class="bsheet">
+    <div class="bs-handle"></div>
+    <div class="qgrid">
+      <div class="qbtn" onclick="go('s-booking')">
+        <div class="qi">🏪</div>
+        <div><div class="ql">Ho Market</div><div class="qs">2.3 km · ~7 min</div></div>
+      </div>
+      <div class="qbtn" onclick="go('s-booking')">
+        <div class="qi">🏥</div>
+        <div><div class="ql">Ho Hospital</div><div class="qs">3.7 km · ~10 min</div></div>
+      </div>
+    </div>
+    <div class="qgrid">
+      <div class="qbtn" onclick="go('s-drivers')">
+        <div class="qi" style="background:rgba(59,130,246,.12)">🚗</div>
+        <div><div class="ql">Nearby Drivers</div><div class="qs">6 available now</div></div>
+      </div>
+      <div class="qbtn" onclick="go('s-sos')">
+        <div class="qi" style="background:rgba(239,68,68,.12)">🆘</div>
+        <div><div class="ql">Emergency SOS</div><div class="qs">Quick alert</div></div>
+      </div>
+    </div>
+    <div class="qgrid">
+      <div class="qbtn" onclick="go('s-schedule')">
+        <div class="qi" style="background:rgba(234,179,8,.1)">📅</div>
+        <div><div class="ql">Schedule Ride</div><div class="qs">Book for later</div></div>
+      </div>
+      <div class="qbtn" onclick="go('s-promo')">
+        <div class="qi" style="background:rgba(34,197,94,.1)">🎁</div>
+        <div><div class="ql">Promo Codes</div><div class="qs">Save on rides</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="bn on"><div class="bn-icon">🏠</div><div class="bn-lbl">Home</div></div>
+    <div class="bn" onclick="go('s-drivers')"><div class="bn-icon">🚗</div><div class="bn-lbl">Drivers</div></div>
+    <div class="bn" onclick="go('s-trips')"><div class="bn-icon">🕓</div><div class="bn-lbl">Trips</div></div>
+    <div class="bn" onclick="go('s-wallet')"><div class="bn-icon">💳</div><div class="bn-lbl">Wallet</div></div>
+    <div class="bn" onclick="go('s-profile')"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 7: SEARCH DESTINATION -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-search">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div class="hdr-title">Where to?</div>
+  </div>
+  <div class="pad" style="flex-shrink:0">
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px">
+      <div style="display:flex;gap:10px;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
+        <div style="font-size:13px;color:var(--muted)">Your location</div>
+        <div style="font-size:14px;color:var(--text);margin-left:auto">Ho Central</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;padding-top:10px">
+        <div style="width:10px;height:10px;border-radius:3px;background:var(--orange);flex-shrink:0"></div>
+        <input class="srch-inp" placeholder="Search destination in Ho..." style="font-size:14px;flex:1" autofocus id="dest-search">
+        <span style="color:var(--muted);cursor:pointer">✕</span>
+      </div>
+    </div>
+  </div>
+  <div class="scroll" style="padding:0 18px">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Popular in Ho</div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Ho Central Market','2.3 km','7 min','12.50')">
+      <div style="font-size:24px;width:42px;text-align:center">🏪</div>
+      <div><div class="d-name">Ho Central Market</div><div class="d-meta">Ho Central · 2.3 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~7 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Ho Technical University','4.1 km','12 min','18.00')">
+      <div style="font-size:24px;width:42px;text-align:center">🎓</div>
+      <div><div class="d-name">Ho Technical University</div><div class="d-meta">Kpodzi · 4.1 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~12 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Ho Teaching Hospital','3.7 km','10 min','16.00')">
+      <div style="font-size:24px;width:42px;text-align:center">🏥</div>
+      <div><div class="d-name">Ho Teaching Hospital</div><div class="d-meta">South Ho · 3.7 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~10 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('EP Cathedral','1.8 km','5 min','8.00')">
+      <div style="font-size:24px;width:42px;text-align:center">⛪</div>
+      <div><div class="d-name">EP Cathedral Church</div><div class="d-meta">Bankoe · 1.8 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~5 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Volta Mall','5.5 km','15 min','24.00')">
+      <div style="font-size:24px;width:42px;text-align:center">🛒</div>
+      <div><div class="d-name">Volta Mall</div><div class="d-meta">Ahoe · 5.5 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~15 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Ho Municipal Assembly','1.2 km','4 min','7.00')">
+      <div style="font-size:24px;width:42px;text-align:center">🏛️</div>
+      <div><div class="d-name">Ho Municipal Assembly</div><div class="d-meta">Ho Central · 1.2 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~4 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Volta River Authority','6.8 km','20 min','30.00')">
+      <div style="font-size:24px;width:42px;text-align:center">💧</div>
+      <div><div class="d-name">Volta River Authority</div><div class="d-meta">Akosombo Rd · 6.8 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~20 min</div></div>
+    </div>
+    <div class="dcard" style="cursor:pointer" onclick="setDest('Ho Airport','12.4 km','28 min','52.00')">
+      <div style="font-size:24px;width:42px;text-align:center">✈️</div>
+      <div><div class="d-name">Ho Airport</div><div class="d-meta">Ho North · 12.4 km</div></div>
+      <div class="d-right"><div style="font-size:13px;color:var(--orange);font-weight:700">~28 min</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 8: BOOKING (choose vehicle + fare) -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-booking">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div><div class="hdr-title">Book a Ride</div><div class="hdr-sub" id="bk-route">Ho Central → Ho Market</div></div>
+  </div>
+  <div class="scroll pad">
+    <!-- Route summary -->
+    <div class="ftbl">
+      <div class="frow"><span class="flabel">📍 From</span><span class="fval">Ho Central</span></div>
+      <div class="frow"><span class="flabel">🏁 To</span><span class="fval" id="bk-dest">Ho Market</span></div>
+      <div class="frow"><span class="flabel">📏 Distance</span><span class="fval" id="bk-dist">2.3 km</span></div>
+      <div class="frow"><span class="flabel">⏱ Est. Time</span><span class="fval" id="bk-time">7 min</span></div>
+      <div class="frow"><span class="flabel">🚦 Traffic</span><span class="fval" style="color:var(--green)">Light</span></div>
+      <div class="frow"><span class="flabel">💰 Base Fare</span><span class="fval">GH₵ 3.00 (flag fall)</span></div>
+    </div>
+    <!-- Vehicle selection -->
+    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">Select Ride Type</div>
+    <div class="vcard sel" onclick="selVehicle(this,'Okada (Bike)','8.00','5')">
+      <div class="v-icon">🏍️</div>
+      <div><div class="v-name">Okada — Bike</div><div class="v-cap">1 passenger · Fastest</div></div>
+      <div class="v-price"><div class="v-amt">GH₵ 8</div><div class="v-eta">5 min ETA</div></div>
+    </div>
+    <div class="vcard" onclick="selVehicle(this,'Pragya (Tricycle)','12.00','7')">
+      <div class="v-icon">🛺</div>
+      <div><div class="v-name">Pragya — Tricycle</div><div class="v-cap">3 passengers</div></div>
+      <div class="v-price"><div class="v-amt">GH₵ 12</div><div class="v-eta">7 min ETA</div></div>
+    </div>
+    <div class="vcard" onclick="selVehicle(this,'Saloon Car','18.00','9')">
+      <div class="v-icon">🚗</div>
+      <div><div class="v-name">Saloon Car</div><div class="v-cap">4 passengers · AC</div></div>
+      <div class="v-price"><div class="v-amt">GH₵ 18</div><div class="v-eta">9 min ETA</div></div>
+    </div>
+    <div class="vcard" onclick="selVehicle(this,'SUV / 4x4','28.00','11')">
+      <div class="v-icon">🚙</div>
+      <div><div class="v-name">SUV / 4x4</div><div class="v-cap">5 passengers · AC · Premium</div></div>
+      <div class="v-price"><div class="v-amt">GH₵ 28</div><div class="v-eta">11 min ETA</div></div>
+    </div>
+    <div class="vcard" onclick="selVehicle(this,'Minibus','35.00','14')">
+      <div class="v-icon">🚐</div>
+      <div><div class="v-name">Minibus</div><div class="v-cap">7 passengers · Group</div></div>
+      <div class="v-price"><div class="v-amt">GH₵ 35</div><div class="v-eta">14 min ETA</div></div>
+    </div>
+    <!-- Payment method -->
+    <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 10px">Payment Method</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" id="pay-cash" onclick="selPay('cash')">
+        <div style="font-size:22px">💵</div><div style="font-size:11px;color:var(--text);margin-top:4px;font-weight:600">Cash</div>
+      </div>
+      <div style="background:var(--orange-light);border:1.5px solid rgba(232,93,4,.5);border-radius:12px;padding:12px;text-align:center;cursor:pointer" id="pay-momo" onclick="selPay('momo')">
+        <div style="font-size:22px">📱</div><div style="font-size:11px;color:var(--orange);margin-top:4px;font-weight:600">MoMo</div>
+      </div>
+      <div style="background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" id="pay-card" onclick="selPay('card')">
+        <div style="font-size:22px">💳</div><div style="font-size:11px;color:var(--text);margin-top:4px;font-weight:600">Card</div>
+      </div>
+    </div>
+    <!-- Promo code -->
+    <div class="field">
+      <div class="flbl">Promo Code (optional)</div>
+      <div class="promo-input">
+        <input class="finp" placeholder="Enter code e.g. DSWIFT10" id="promo-code">
+        <button class="btn btn-p" onclick="applyPromo()" style="padding:0 14px;width:auto;font-size:13px">Apply</button>
+      </div>
+    </div>
+    <!-- Extras -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="trow">
+        <div class="trow-left"><div class="tl">Share trip with contacts</div><div class="ts">Family gets live link</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="trow">
+        <div class="trow-left"><div class="tl">Quiet ride</div><div class="ts">Driver won't initiate chat</div></div>
+        <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <button class="btn btn-p" id="book-btn" onclick="go('s-tracking')" style="margin-bottom:10px">Book Ride — GH₵ 8.00</button>
+    <button class="btn btn-s" onclick="go('s-home')">Cancel</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 9: LIVE TRACKING -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-tracking">
+  <div class="map-wrap">
+    <div id="map2"></div>
+    <!-- ETA pill on map -->
+    <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:400;background:var(--orange);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:700;box-shadow:0 4px 16px rgba(232,93,4,.4)">
+      🚗 Driver 4 min away
+    </div>
+  </div>
+  <div class="track-info">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:15px;font-weight:700;color:var(--text)">Driver is on the way</div>
+      <div class="badge badge-g"><div class="pulse-dot"></div>Live</div>
+    </div>
+    <div class="prog-bar"><div class="prog-fill"></div></div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:14px">
+      <span>Arriving ~4 min</span><span>2.3 km remaining</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+      <div class="d-ava" style="background:linear-gradient(135deg,#E85D04,#f77f00);width:50px;height:50px;font-size:16px">AK</div>
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;color:var(--text)">Ama Kodzi</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">Toyota Corolla · GR 1234-24</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px">⭐ 4.9 (312 trips)</div>
+      </div>
+      <div class="icon-row">
+        <div class="ibtn" onclick="showToast('Calling driver...','Ama Kodzi · +233 24 555 1234')">📞</div>
+        <div class="ibtn" onclick="go('s-chat')">💬</div>
+        <div class="ibtn" onclick="showToast('Trip shared!','Link sent to your emergency contacts')">📤</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;padding-top:12px">
+      <button class="btn btn-s" style="flex:1;font-size:13px" onclick="go('s-rating')">Trip Complete →</button>
+      <button class="btn btn-d" style="flex:1;font-size:13px" onclick="go('s-home')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 10: RATING -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-rating">
+  <div class="scroll pad" style="display:flex;flex-direction:column;align-items:center;padding-top:32px">
+    <div style="font-size:52px;margin-bottom:14px">🏁</div>
+    <div class="sec" style="text-align:center;margin-bottom:4px">Trip Completed!</div>
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:24px">Ho Central → Ho Market · 2.3 km · 8 min</div>
+    <div class="ftbl" style="width:100%;margin-bottom:20px">
+      <div class="frow"><span class="flabel">Distance</span><span class="fval">2.3 km</span></div>
+      <div class="frow"><span class="flabel">Time</span><span class="fval">8 min</span></div>
+      <div class="frow"><span class="flabel">Vehicle</span><span class="fval">Saloon Car</span></div>
+      <div class="frow"><span class="flabel">Payment</span><span class="fval">MoMo</span></div>
+      <div class="frow"><span class="flabel">Total Paid</span><span class="fval big">GH₵ 18.00</span></div>
+    </div>
+    <div class="d-ava" style="background:linear-gradient(135deg,#E85D04,#f77f00);width:60px;height:60px;font-size:18px;margin-bottom:10px">AK</div>
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">Rate Ama Kodzi</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:18px">How was your ride?</div>
+    <div class="stars" style="margin-bottom:20px" id="star-row">
+      <span class="star" onclick="rateStar(1)">⭐</span>
+      <span class="star" onclick="rateStar(2)">⭐</span>
+      <span class="star" onclick="rateStar(3)">⭐</span>
+      <span class="star on" onclick="rateStar(4)">⭐</span>
+      <span class="star on" onclick="rateStar(5)">⭐</span>
+    </div>
+    <div style="width:100%;margin-bottom:16px">
+      <div class="flbl" style="margin-bottom:8px">Leave a comment (optional)</div>
+      <textarea class="finp" rows="3" placeholder="Great driver, on time, clean car..." style="resize:none;line-height:1.6">Very smooth ride. On time!</textarea>
+    </div>
+    <button class="btn btn-p" onclick="go('s-home')" style="margin-bottom:10px;width:100%">Submit Rating & Finish</button>
+    <button class="btn btn-s" onclick="go('s-home')" style="width:100%">Skip</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 11: NEARBY DRIVERS -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-drivers">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div><div class="hdr-title">Nearby Drivers</div><div class="hdr-sub">6 available in Ho now</div></div>
+    <div class="hdr-right"><span style="font-size:13px;color:var(--orange);cursor:pointer">Filter</span></div>
+  </div>
+  <div class="scroll pad">
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#E85D04,#f77f00)">AK</div>
+      <div><div class="d-name">Ama Kodzi</div><div class="d-meta">Toyota Corolla · GR 1234-24</div><div class="d-rating">⭐ 4.9 · 312 trips · AC</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--green)">● Available</div><div class="d-eta">~3 min</div></div>
+    </div>
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#3B82F6,#1d4ed8)">KM</div>
+      <div><div class="d-name">Kofi Mensah</div><div class="d-meta">Honda Civic · GR 5678-23</div><div class="d-rating">⭐ 4.7 · 198 trips · AC</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--green)">● Available</div><div class="d-eta">~5 min</div></div>
+    </div>
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#8B5CF6,#6D28D9)">YA</div>
+      <div><div class="d-name">Yaw Agbesi</div><div class="d-meta">Okada · Motorcycle</div><div class="d-rating">⭐ 4.8 · 445 trips</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--yellow)">● On Trip</div><div class="d-eta">~14 min</div></div>
+    </div>
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#22C55E,#15803d)">AT</div>
+      <div><div class="d-name">Abena Tornu</div><div class="d-meta">Hyundai i10 · GR 2211-24</div><div class="d-rating">⭐ 5.0 · 87 trips · AC</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--green)">● Available</div><div class="d-eta">~6 min</div></div>
+    </div>
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#F59E0B,#B45309)">EN</div>
+      <div><div class="d-name">Edem Nutsugah</div><div class="d-meta">Pragya · Tricycle</div><div class="d-rating">⭐ 4.6 · 221 trips</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--green)">● Available</div><div class="d-eta">~2 min</div></div>
+    </div>
+    <div class="dcard">
+      <div class="d-ava" style="background:linear-gradient(135deg,#EF4444,#B91C1C)">DS</div>
+      <div><div class="d-name">Dodzi Segbah</div><div class="d-meta">Toyota Hiace · GR 3344-22</div><div class="d-rating">⭐ 4.5 · 567 trips · Minibus</div></div>
+      <div class="d-right"><div class="d-status" style="color:var(--yellow)">● On Trip</div><div class="d-eta">~22 min</div></div>
+    </div>
+  </div>
+  <div style="padding:0 18px 14px">
+    <button class="btn btn-p" onclick="go('s-booking')">Book a Ride Now</button>
+  </div>
+  <div class="bnav">
+    <div class="bn" onclick="go('s-home')"><div class="bn-icon">🏠</div><div class="bn-lbl">Home</div></div>
+    <div class="bn on"><div class="bn-icon">🚗</div><div class="bn-lbl">Drivers</div></div>
+    <div class="bn" onclick="go('s-trips')"><div class="bn-icon">🕓</div><div class="bn-lbl">Trips</div></div>
+    <div class="bn" onclick="go('s-wallet')"><div class="bn-icon">💳</div><div class="bn-lbl">Wallet</div></div>
+    <div class="bn" onclick="go('s-profile')"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 12: TRIPS HISTORY -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-trips">
+  <div class="hdr">
+    <div class="hdr-logo">DS</div>
+    <div><div class="hdr-title">Your Trips</div><div class="hdr-sub">Ride history</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="stats">
+      <div class="scard"><div class="slbl">Total Trips</div><div class="sval">47</div></div>
+      <div class="scard"><div class="slbl">Total Spent</div><div class="sval accent">GH₵ 680</div></div>
+      <div class="scard"><div class="slbl">Saved via Promo</div><div class="sval" style="color:var(--green)">GH₵ 48</div></div>
+      <div class="scard"><div class="slbl">Avg Rating Given</div><div class="sval">4.8 ⭐</div></div>
+    </div>
+    <div class="tabs">
+      <div class="tab on">All Trips</div>
+      <div class="tab">Upcoming</div>
+      <div class="tab">Cancelled</div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--muted)">Today · 8:22 AM</span>
+        <span style="font-size:14px;font-weight:700;color:var(--orange)">GH₵ 18.00</span>
+      </div>
+      <div class="hist-route">
+        <div class="route-pt"><div class="rdot" style="background:var(--green)"></div>Ho Central</div>
+        <div class="rline"></div>
+        <div class="route-pt"><div class="rdot" style="background:var(--orange)"></div>Ho Market</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted)">Ama Kodzi · Saloon · MoMo</span>
+        <span style="font-size:11px;color:var(--green)">⭐ You rated 5</span>
+      </div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--muted)">Yesterday · 3:45 PM</span>
+        <span style="font-size:14px;font-weight:700;color:var(--orange)">GH₵ 8.00</span>
+      </div>
+      <div class="hist-route">
+        <div class="route-pt"><div class="rdot" style="background:var(--green)"></div>Ho Technical University</div>
+        <div class="rline"></div>
+        <div class="route-pt"><div class="rdot" style="background:var(--orange)"></div>Ho Bankoe</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted)">Yaw Agbesi · Okada · Cash</span>
+        <span style="font-size:11px;color:var(--green)">⭐ You rated 4</span>
+      </div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:11px;color:var(--muted)">Jun 25 · 11:00 AM</span>
+        <span style="font-size:14px;font-weight:700;color:var(--orange)">GH₵ 24.00</span>
+      </div>
+      <div class="hist-route">
+        <div class="route-pt"><div class="rdot" style="background:var(--green)"></div>Ho Central</div>
+        <div class="rline"></div>
+        <div class="route-pt"><div class="rdot" style="background:var(--orange)"></div>Volta Mall</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--muted)">Kofi Mensah · Saloon · MoMo</span>
+        <span style="font-size:11px;color:var(--yellow)">⭐ You rated 3</span>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="bn" onclick="go('s-home')"><div class="bn-icon">🏠</div><div class="bn-lbl">Home</div></div>
+    <div class="bn" onclick="go('s-drivers')"><div class="bn-icon">🚗</div><div class="bn-lbl">Drivers</div></div>
+    <div class="bn on"><div class="bn-icon">🕓</div><div class="bn-lbl">Trips</div></div>
+    <div class="bn" onclick="go('s-wallet')"><div class="bn-icon">💳</div><div class="bn-lbl">Wallet</div></div>
+    <div class="bn" onclick="go('s-profile')"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 13: WALLET -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-wallet">
+  <div class="hdr">
+    <div class="hdr-logo">DS</div>
+    <div><div class="hdr-title">D-Swift Wallet</div><div class="hdr-sub">Payments & balance</div></div>
+  </div>
+  <div class="scroll pad">
+    <div style="background:linear-gradient(135deg,#1a1f2e,#222840);border:1px solid rgba(232,93,4,.3);border-radius:20px;padding:20px;margin-bottom:18px;text-align:center">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">D-Swift Wallet Balance</div>
+      <div style="font-size:40px;font-weight:800;color:var(--text);margin-bottom:6px">GH₵ 42.50</div>
+      <div style="font-size:12px;color:var(--muted)">Available for rides</div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-p" style="flex:1;padding:11px;font-size:13px" onclick="showToast('Top Up','Choose MTN MoMo, Vodafone Cash, or AirtelTigo')">Top Up</button>
+        <button class="btn btn-s" style="flex:1;padding:11px;font-size:13px" onclick="showToast('Withdraw','Funds sent to your MoMo in 1-2 mins')">Withdraw</button>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Linked Payment Methods</div>
+    <div class="pay-opt sel">
+      <div style="font-size:24px">📱</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--text)">MTN MoMo</div><div style="font-size:12px;color:var(--muted)">+233 24 *** 4567 · Default</div></div>
+      <div class="badge badge-g">Default</div>
+    </div>
+    <div class="pay-opt">
+      <div style="font-size:24px">💵</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--text)">Cash</div><div style="font-size:12px;color:var(--muted)">Pay driver directly</div></div>
+    </div>
+    <div class="pay-opt" onclick="showToast('Add card','Visa/Mastercard debit cards accepted')">
+      <div style="font-size:24px">➕</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--orange)">Add Debit Card</div><div style="font-size:12px;color:var(--muted)">Visa / Mastercard</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 12px">Recent Transactions</div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;color:var(--text);font-weight:600">Ride Payment</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Ho Central → Ho Market · Today 8:22 AM</div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--red)">−GH₵ 18.00</div>
+      </div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;color:var(--text);font-weight:600">Wallet Top Up</div><div style="font-size:11px;color:var(--muted);margin-top:2px">MTN MoMo · Yesterday 2:10 PM</div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--green)">+GH₵ 50.00</div>
+      </div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;color:var(--text);font-weight:600">Promo Reward</div><div style="font-size:11px;color:var(--muted);margin-top:2px">DSWIFT10 applied · Jun 25</div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--green)">+GH₵ 5.00</div>
+      </div>
+    </div>
+  </div>
+  <div class="bnav">
+    <div class="bn" onclick="go('s-home')"><div class="bn-icon">🏠</div><div class="bn-lbl">Home</div></div>
+    <div class="bn" onclick="go('s-drivers')"><div class="bn-icon">🚗</div><div class="bn-lbl">Drivers</div></div>
+    <div class="bn" onclick="go('s-trips')"><div class="bn-icon">🕓</div><div class="bn-lbl">Trips</div></div>
+    <div class="bn on"><div class="bn-icon">💳</div><div class="bn-lbl">Wallet</div></div>
+    <div class="bn" onclick="go('s-profile')"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 14: PROFILE -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-profile">
+  <div class="hdr">
+    <div class="hdr-logo">DS</div>
+    <div><div class="hdr-title">My Profile</div></div>
+  </div>
+  <div class="scroll pad">
+    <div style="text-align:center;margin-bottom:22px">
+      <div class="d-ava" style="background:linear-gradient(135deg,#E85D04,#f77f00);width:76px;height:76px;font-size:26px;margin:0 auto 12px">KM</div>
+      <div style="font-size:20px;font-weight:700;color:var(--text)">Kofi Mensah</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">+233 24 000 0000 · Ho Central</div>
+      <div style="margin-top:10px;display:flex;justify-content:center;gap:8px">
+        <div class="badge badge-g">✓ Verified</div>
+        <div class="badge badge-o">47 Trips</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="trow" style="padding:12px 0" onclick="showToast('Edit Profile','Update your personal information')">
+        <div class="trow-left"><div class="tl">👤 Edit Profile</div></div><div style="color:var(--muted)">›</div>
+      </div>
+      <div class="trow" style="padding:12px 0" onclick="go('s-places')">
+        <div class="trow-left"><div class="tl">📍 Saved Places</div></div><div style="color:var(--muted)">3 saved ›</div>
+      </div>
+      <div class="trow" style="padding:12px 0" onclick="go('s-wallet')">
+        <div class="trow-left"><div class="tl">💳 Payment Methods</div></div><div style="color:var(--orange)">MoMo ›</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="trow" style="padding:12px 0">
+        <div class="trow-left"><div class="tl">🔔 Push Notifications</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="trow" style="padding:12px 0">
+        <div class="trow-left"><div class="tl">📨 SMS Alerts</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="trow" style="padding:12px 0">
+        <div class="trow-left"><div class="tl">📍 Location Services</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="trow" style="padding:12px 0" onclick="go('s-sos')">
+        <div class="trow-left"><div class="tl">🆘 Emergency Contacts</div></div><div style="color:var(--muted)">2 saved ›</div>
+      </div>
+      <div class="trow" style="padding:12px 0" onclick="go('s-support')">
+        <div class="trow-left"><div class="tl">💬 Help & Support</div></div><div style="color:var(--muted)">›</div>
+      </div>
+      <div class="trow" style="padding:12px 0" onclick="showToast('Language','Currently: English (Twi/Ewe coming soon)')">
+        <div class="trow-left"><div class="tl">🌍 Language</div></div><div style="color:var(--muted)">English ›</div>
+      </div>
+      <div class="trow" style="padding:12px 0" onclick="go('s-admin')">
+        <div class="trow-left"><div class="tl">🛡️ Admin Panel</div><div class="ts">D-Swift staff access</div></div><div style="color:var(--orange)">›</div>
+      </div>
+    </div>
+    <button class="btn btn-d" onclick="go('s-splash')" style="margin-bottom:20px">Log Out</button>
+    <div style="text-align:center;font-size:11px;color:var(--muted)">D-Swift Transport Service v1.0.0<br>Ho, Volta Region, Ghana 🇬🇭</div>
+  </div>
+  <div class="bnav">
+    <div class="bn" onclick="go('s-home')"><div class="bn-icon">🏠</div><div class="bn-lbl">Home</div></div>
+    <div class="bn" onclick="go('s-drivers')"><div class="bn-icon">🚗</div><div class="bn-lbl">Drivers</div></div>
+    <div class="bn" onclick="go('s-trips')"><div class="bn-icon">🕓</div><div class="bn-lbl">Trips</div></div>
+    <div class="bn" onclick="go('s-wallet')"><div class="bn-icon">💳</div><div class="bn-lbl">Wallet</div></div>
+    <div class="bn on"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 15: SOS / EMERGENCY -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-sos">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div><div class="hdr-title" style="color:var(--red)">Emergency SOS</div></div>
+  </div>
+  <div class="scroll pad" style="display:flex;flex-direction:column;align-items:center;padding-top:28px">
+    <div style="font-size:42px;margin-bottom:14px;animation:pd 1s infinite">🆘</div>
+    <div class="sec" style="text-align:center;color:var(--red);margin-bottom:8px">Emergency Alert</div>
+    <div class="sec-s" style="text-align:center;margin-bottom:24px">Hold the button for 3 seconds to send your GPS location to D-Swift dispatch and your emergency contacts.</div>
+    <div class="sos-btn" onclick="triggerSOS()">
+      <div style="font-size:40px">🆘</div>
+      <div>SEND SOS</div>
+      <div style="font-size:11px;opacity:.8">Hold 3 seconds</div>
+    </div>
+    <div style="margin-top:24px;width:100%">
+      <div class="card" style="margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px">Your Emergency Contacts</div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:20px">👩</span>
+          <div style="flex:1"><div style="font-size:13px;color:var(--text)">Mum — Abena</div><div style="font-size:11px;color:var(--muted)">+233 24 111 1111</div></div>
+          <div class="badge badge-g" style="cursor:pointer">📞 Call</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0">
+          <span style="font-size:20px">👦</span>
+          <div style="flex:1"><div style="font-size:13px;color:var(--text)">John (brother)</div><div style="font-size:11px;color:var(--muted)">+233 20 222 2222</div></div>
+          <div class="badge badge-g" style="cursor:pointer">📞 Call</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Ghana Emergency Numbers</div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Police</span><span style="font-size:13px;font-weight:700;color:var(--red)">191 / 999</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Fire Service</span><span style="font-size:13px;font-weight:700;color:var(--red)">192</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:13px;color:var(--muted)">Ambulance</span><span style="font-size:13px;font-weight:700;color:var(--red)">193</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0"><span style="font-size:13px;color:var(--muted)">General Emergency</span><span style="font-size:13px;font-weight:700;color:var(--red)">112</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 16: SCHEDULE RIDE -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-schedule">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div><div class="hdr-title">Schedule a Ride</div><div class="hdr-sub">Book in advance</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="notif"><span class="notif-icon">📅</span>
+      <div class="notif-txt">Schedule rides up to <strong>7 days ahead</strong>. You'll receive an SMS reminder 30 minutes before pickup.</div>
+    </div>
+    <div class="field"><div class="flbl">Pickup Location</div><input class="finp" placeholder="Ho Central (your location)" value="Ho Central"></div>
+    <div class="field"><div class="flbl">Destination</div><input class="finp" placeholder="Search destination..." onclick="go('s-search')"></div>
+    <div class="field"><div class="flbl">Date</div><input class="finp" type="date"></div>
+    <div class="field"><div class="flbl">Time</div><input class="finp" type="time" value="08:00"></div>
+    <div class="field"><div class="flbl">Vehicle Type</div>
+      <select class="finp">
+        <option>Okada (Bike)</option><option>Pragya (Tricycle)</option>
+        <option selected>Saloon Car</option><option>SUV / 4x4</option><option>Minibus</option>
+      </select>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="trow">
+        <div class="trow-left"><div class="tl">SMS Reminder (30 min before)</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="trow">
+        <div class="trow-left"><div class="tl">Repeat weekly</div><div class="ts">Same time every week</div></div>
+        <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Your upcoming scheduled rides</div>
+    <div class="sched-item">
+      <div style="background:var(--orange-light);border-radius:10px;width:44px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="font-size:10px;color:var(--orange);font-weight:700">JUL</div>
+        <div style="font-size:18px;font-weight:800;color:var(--orange)">28</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Ho Central → HTU</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">7:30 AM · Saloon Car</div>
+      </div>
+      <div class="badge badge-o">Scheduled</div>
+    </div>
+    <button class="btn btn-p" onclick="showToast('Ride Scheduled!','Your driver will be notified. SMS reminder coming.')" style="margin-top:8px">Confirm Schedule →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 17: PROMO CODES -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-promo">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-home')">←</span>
+    <div><div class="hdr-title">Promo Codes</div><div class="hdr-sub">Save on your rides</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="field">
+      <div class="flbl">Enter Promo Code</div>
+      <div class="promo-input">
+        <input class="finp" placeholder="e.g. DSWIFT10" id="promo-inp2">
+        <button class="btn btn-p" onclick="showToast('Promo Applied!','GH₵ 5 discount added to your next ride')" style="padding:0 14px;width:auto;font-size:13px">Apply</button>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin:16px 0 10px">Available Promos</div>
+    <div class="promo" style="cursor:pointer" onclick="showToast('DSWIFT10 Applied!','10% off your next 3 rides')">
+      <div style="font-size:28px">🏷️</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--orange)">DSWIFT10</div>
+        <div style="font-size:12px;color:var(--text);margin-top:4px">10% off next 3 rides</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Expires Jul 31, 2026 · New users only</div>
+      </div>
+    </div>
+    <div class="promo" style="cursor:pointer" onclick="showToast('FIRSTRIDE Applied!','First ride free up to GH₵ 20')">
+      <div style="font-size:28px">🎁</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--orange)">FIRSTRIDE</div>
+        <div style="font-size:12px;color:var(--text);margin-top:4px">First ride free (up to GH₵ 20)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">New accounts only · One time use</div>
+      </div>
+    </div>
+    <div class="promo" style="cursor:pointer;opacity:.5">
+      <div style="font-size:28px">⏰</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:var(--muted)">WEEKEND20</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">20% off Sat & Sun rides</div>
+        <div style="font-size:11px;color:var(--red);margin-top:2px">Expired · Jul 20, 2026</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;background:var(--card);border-radius:var(--radius);padding:14px;border:1px solid var(--border);text-align:center">
+      <div style="font-size:18px;margin-bottom:6px">🤝</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Refer a Friend</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Get GH₵ 5 for every friend who joins D-Swift</div>
+      <div style="background:var(--card2);border-radius:10px;padding:10px;font-size:15px;font-weight:800;color:var(--orange);letter-spacing:2px">KOFI-REF-7291</div>
+      <button class="btn btn-s" onclick="showToast('Link Copied!','Share your code with friends')" style="margin-top:12px;padding:10px;font-size:12px">📋 Copy Referral Code</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 18: SAVED PLACES -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-places">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-profile')">←</span>
+    <div><div class="hdr-title">Saved Places</div></div>
+    <div class="hdr-right"><span style="font-size:20px;color:var(--orange);cursor:pointer">+</span></div>
+  </div>
+  <div class="scroll pad">
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">🏠</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--text)">Home</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Bankoe, Ho Central</div></div>
+        <div onclick="showToast('Navigating home','Setting destination to Home')" style="cursor:pointer"><div class="badge badge-o">Go</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">🏢</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--text)">Work / School</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Ho Technical University, Kpodzi</div></div>
+        <div onclick="go('s-booking')" style="cursor:pointer"><div class="badge badge-o">Go</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:24px">🏥</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--text)">Hospital</div><div style="font-size:12px;color:var(--muted);margin-top:2px">Ho Teaching Hospital</div></div>
+        <div onclick="go('s-booking')" style="cursor:pointer"><div class="badge badge-o">Go</div></div>
+      </div>
+    </div>
+    <button class="btn btn-s" onclick="showToast('Add Place','Search and pin a new location')">+ Add New Place</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 19: IN-APP CHAT (with driver) -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-chat">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-tracking')">←</span>
+    <div class="d-ava" style="background:linear-gradient(135deg,#E85D04,#f77f00);width:34px;height:34px;font-size:12px">AK</div>
+    <div><div class="hdr-title">Ama Kodzi</div><div class="hdr-sub" style="color:var(--green)">● On the way</div></div>
+    <div class="hdr-right"><div class="ibtn">📞</div></div>
+  </div>
+  <div class="scroll pad">
+    <div style="text-align:center;margin:10px 0 20px"><span style="font-size:11px;color:var(--muted);background:var(--card2);padding:5px 14px;border-radius:20px">Today · 9:34 AM</span></div>
+    <div class="msg msg-in"><div class="msg-b">Hello! I'm on my way. ETA 4 minutes.</div><div class="msg-time">9:34 AM</div></div>
+    <div class="msg msg-out"><div class="msg-b">Okay, I'm at the Ho Central roundabout entrance.</div><div class="msg-time">9:35 AM</div></div>
+    <div class="msg msg-in"><div class="msg-b">Perfect! I can see you. I'm the silver Toyota Corolla.</div><div class="msg-time">9:36 AM</div></div>
+    <div class="msg msg-out"><div class="msg-b">Got it, see you!</div><div class="msg-time">9:37 AM</div></div>
+    <!-- Quick replies -->
+    <div style="margin-top:16px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Quick replies</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer">I'm ready 👍</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer">Wait 2 minutes</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer">Call me</div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;color:var(--text);cursor:pointer">I'm outside</div>
+      </div>
+    </div>
+  </div>
+  <div style="padding:10px 18px 14px;background:var(--card);border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0">
+    <input class="finp" style="flex:1;margin:0" placeholder="Type a message...">
+    <button class="btn btn-p" style="width:auto;padding:0 18px;font-size:16px">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 20: SUPPORT CHAT -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-support">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-profile')">←</span>
+    <div class="hdr-logo">DS</div>
+    <div><div class="hdr-title">D-Swift Support</div><div class="hdr-sub" style="color:var(--green)">● Online now</div></div>
+  </div>
+  <div class="scroll pad">
+    <div style="text-align:center;margin:10px 0 20px"><span style="font-size:11px;color:var(--muted);background:var(--card2);padding:5px 14px;border-radius:20px">Today · 9:00 AM</span></div>
+    <div class="msg msg-in">
+      <div class="msg-b">👋 Hello! Welcome to D-Swift Support. How can we help you today?</div>
+      <div class="msg-time">9:00 AM</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" onclick="showToast('Connecting agent...','A D-Swift agent will reply shortly')">
+        <div style="font-size:20px;margin-bottom:5px">❓</div>
+        <div style="font-size:12px;color:var(--text);font-weight:600">Trip Issue</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" onclick="showToast('Connecting agent...','Refunds typically take 1-2 business days')">
+        <div style="font-size:20px;margin-bottom:5px">💸</div>
+        <div style="font-size:12px;color:var(--text);font-weight:600">Refund Request</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" onclick="showToast('Connecting agent...','Driver reports reviewed within 2 hours')">
+        <div style="font-size:20px;margin-bottom:5px">🚨</div>
+        <div style="font-size:12px;color:var(--text);font-weight:600">Report Driver</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;cursor:pointer" onclick="showToast('Connecting agent...','Account help on the way')">
+        <div style="font-size:20px;margin-bottom:5px">🔐</div>
+        <div style="font-size:12px;color:var(--text);font-weight:600">Account Help</div>
+      </div>
+    </div>
+    <div style="background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:10px;border:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">📞 Call Us Directly</div>
+      <div style="font-size:14px;color:var(--orange);font-weight:700">+233 30 277 0001</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">Mon–Fri 7AM–10PM · Sat–Sun 8AM–8PM</div>
+    </div>
+  </div>
+  <div style="padding:10px 18px 14px;background:var(--card);border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0">
+    <input class="finp" style="flex:1;margin:0" placeholder="Describe your issue...">
+    <button class="btn btn-p" style="width:auto;padding:0 18px;font-size:16px">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 21: DRIVER DASHBOARD -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-driver-dash">
+  <div class="hdr">
+    <div class="hdr-logo">DS</div>
+    <div><div class="hdr-title">Driver Dashboard</div><div class="hdr-sub">Welcome, Ama Kodzi</div></div>
+    <div class="hdr-right">
+      <div class="toggle on" onclick="this.classList.toggle('on');showToast(this.classList.contains('on')?'You are now Online':'You are now Offline',this.classList.contains('on')?'You can receive ride requests':'No new requests will be sent')"></div>
+    </div>
+  </div>
+  <div class="scroll pad">
+    <div class="earn-card">
+      <div style="font-size:12px;color:rgba(34,197,94,.7);text-transform:uppercase;letter-spacing:.05em">Today's Earnings</div>
+      <div class="earn-amt">GH₵ 87.50</div>
+      <div style="display:flex;gap:24px">
+        <div><div style="font-size:11px;color:rgba(34,197,94,.6)">Trips</div><div style="font-size:16px;font-weight:700;color:var(--green)">6</div></div>
+        <div><div style="font-size:11px;color:rgba(34,197,94,.6)">Hours Online</div><div style="font-size:16px;font-weight:700;color:var(--green)">5.2h</div></div>
+        <div><div style="font-size:11px;color:rgba(34,197,94,.6)">Rating</div><div style="font-size:16px;font-weight:700;color:var(--green)">4.9⭐</div></div>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="scard"><div class="slbl">This Week</div><div class="sval accent">GH₵ 520</div></div>
+      <div class="scard"><div class="slbl">This Month</div><div class="sval">GH₵ 2,140</div></div>
+      <div class="scard"><div class="slbl">Total Trips</div><div class="sval">312</div></div>
+      <div class="scard"><div class="slbl">Acceptance Rate</div><div class="sval" style="color:var(--green)">94%</div></div>
+    </div>
+    <!-- Incoming request simulation -->
+    <div style="background:rgba(232,93,4,.08);border:1.5px solid rgba(232,93,4,.4);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:700;color:var(--orange)">🔔 New Ride Request</div>
+        <div style="font-size:12px;color:var(--muted)">Expires in 15s</div>
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:4px">Ho Central → Ho Technical University</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px">4.1 km · ~12 min · GH₵ 18.00</div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-d" style="flex:1;padding:11px;font-size:13px" onclick="showToast('Declined','Request skipped')">Decline</button>
+        <button class="btn btn-p" style="flex:2;padding:11px;font-size:13px" onclick="showToast('Accepted!','Navigating to pickup: Ho Central')">Accept Ride</button>
+      </div>
+    </div>
+    <!-- Recent trips -->
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Recent Trips</div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;color:var(--text);font-weight:600">Ho Central → Ho Market</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Today 8:22 AM · 2.3 km</div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--green)">+GH₵ 18</div>
+      </div>
+    </div>
+    <div class="hitem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:13px;color:var(--text);font-weight:600">Bankoe → Ho Hospital</div><div style="font-size:11px;color:var(--muted);margin-top:2px">Today 10:05 AM · 3.7 km</div></div>
+        <div style="font-size:14px;font-weight:700;color:var(--green)">+GH₵ 16</div>
+      </div>
+    </div>
+    <button class="btn btn-s" onclick="go('s-home')" style="margin-top:8px">Switch to Rider Mode</button>
+  </div>
+  <div class="bnav">
+    <div class="bn on"><div class="bn-icon">📊</div><div class="bn-lbl">Dashboard</div></div>
+    <div class="bn"><div class="bn-icon">🗺️</div><div class="bn-lbl">Map</div></div>
+    <div class="bn"><div class="bn-icon">🕓</div><div class="bn-lbl">History</div></div>
+    <div class="bn"><div class="bn-icon">💰</div><div class="bn-lbl">Earnings</div></div>
+    <div class="bn"><div class="bn-icon">👤</div><div class="bn-lbl">Profile</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- SCREEN 22: ADMIN PANEL -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="screen" id="s-admin">
+  <div class="hdr">
+    <span class="hdr-back" onclick="go('s-profile')">←</span>
+    <div><div class="hdr-title">Admin Panel</div><div class="hdr-sub">D-Swift Operations — Ho</div></div>
+    <div class="hdr-right"><div class="badge badge-r">Staff</div></div>
+  </div>
+  <div class="scroll pad">
+    <div class="adgrid">
+      <div class="admin-stat"><div class="admin-stat-l">Active Drivers</div><div class="admin-stat-v" style="color:var(--green)">47</div></div>
+      <div class="admin-stat"><div class="admin-stat-l">Live Rides</div><div class="admin-stat-v" style="color:var(--orange)">12</div></div>
+      <div class="admin-stat"><div class="admin-stat-l">Today's Trips</div><div class="admin-stat-v">138</div></div>
+      <div class="admin-stat"><div class="admin-stat-l">Today's Revenue</div><div class="admin-stat-v" style="color:var(--green)">GH₵ 2,480</div></div>
+      <div class="admin-stat"><div class="admin-stat-l">Registered Users</div><div class="admin-stat-v">1,842</div></div>
+      <div class="admin-stat"><div class="admin-stat-l">Pending Drivers</div><div class="admin-stat-v" style="color:var(--yellow)">5</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Pending Driver Approvals</div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="d-ava" style="background:var(--card2);width:40px;height:40px;font-size:13px;color:var(--muted)">BK</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">Bright Koku</div><div style="font-size:12px;color:var(--muted)">Toyota Corolla · GR 9988-24 · Applied 2h ago</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s" style="flex:1;padding:9px;font-size:12px" onclick="showToast('Rejected','Application declined. Applicant notified.')">Reject</button>
+        <button class="btn btn-p" style="flex:2;padding:9px;font-size:12px" onclick="showToast('Approved!','Bright Koku is now a D-Swift driver')">Approve Driver ✓</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div class="d-ava" style="background:var(--card2);width:40px;height:40px;font-size:13px;color:var(--muted)">RA</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">Rose Adzoa</div><div style="font-size:12px;color:var(--muted)">Honda Civic · GR 5522-23 · Applied 5h ago</div></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-s" style="flex:1;padding:9px;font-size:12px" onclick="showToast('Rejected','Application declined. Applicant notified.')">Reject</button>
+        <button class="btn btn-p" style="flex:2;padding:9px;font-size:12px" onclick="showToast('Approved!','Rose Adzoa is now a D-Swift driver')">Approve Driver ✓</button>
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">Quick Admin Actions</div>
+    <div class="card">
+      <div class="trow" style="padding:12px 0;cursor:pointer" onclick="showToast('Sending push...','Notification sent to all 1,842 users')">
+        <div class="trow-left"><div class="tl">📣 Send Push Notification</div><div class="ts">Broadcast to all users</div></div><div style="color:var(--muted)">›</div>
+      </div>
+      <div class="trow" style="padding:12px 0;cursor:pointer" onclick="showToast('Fare updated','New rates effective immediately')">
+        <div class="trow-left"><div class="tl">💰 Adjust Fare Rates</div><div class="ts">Per km / per category</div></div><div style="color:var(--muted)">›</div>
+      </div>
+      <div class="trow" style="padding:12px 0;cursor:pointer" onclick="showToast('Promo created','DSWIFT25 now live')">
+        <div class="trow-left"><div class="tl">🎁 Create Promo Code</div><div class="ts">Discount campaigns</div></div><div style="color:var(--muted)">›</div>
+      </div>
+      <div class="trow" style="padding:12px 0;cursor:pointer" onclick="showToast('Report exported','Sent to admin email')">
+        <div class="trow-left"><div class="tl">📊 Export Revenue Report</div><div class="ts">CSV for accounting</div></div><div style="color:var(--muted)">›</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /phone-shell -->
+
+<script>
+// ─── NAVIGATION ────────────────────────────
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  // Init maps on demand
+  if (id === 's-home' && !mapInit) initMap();
+  if (id === 's-tracking' && !map2Init) initMap2();
+}
+
+// ─── CLOCK ─────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours().toString().padStart(2,'0');
+  const m = now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('sb-time').textContent = h + ':' + m;
+}
+updateClock(); setInterval(updateClock, 10000);
+
+// ─── TOAST ─────────────────────────────────
+function showToast(title, sub) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-t').textContent = title;
+  document.getElementById('toast-s').textContent = sub || '';
+  t.style.display = 'block';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.style.display = 'none', 3200);
+}
+
+// ─── OTP TIMER ─────────────────────────────
+let timerCount = 59;
+function runTimer() {
+  const el = document.getElementById('timer');
+  if(!el) return;
+  if(timerCount > 0) {
+    el.textContent = '0:' + timerCount.toString().padStart(2,'0');
+    timerCount--;
+    setTimeout(runTimer, 1000);
+  } else {
+    document.getElementById('resend-btn').textContent = 'Resend Code';
+  }
+}
+setTimeout(runTimer, 500);
+
+// ─── DRIVER REGISTRATION TABS ──────────────
+function drTab(idx) {
+  [0,1,2].forEach(i => {
+    const p = document.getElementById('dr-panel-'+i);
+    const t = document.querySelectorAll('#dr-tabs .tab')[i];
+    if (p) p.style.display = i === idx ? 'block' : 'none';
+    if (t) t.classList.toggle('on', i === idx);
+  });
+}
+
+// ─── VEHICLE SELECTION ─────────────────────
+function selVehicle(el, name, price, eta) {
+  document.querySelectorAll('.vcard').forEach(v => v.classList.remove('sel'));
+  el.classList.add('sel');
+  const btn = document.getElementById('book-btn');
+  if (btn) btn.textContent = 'Book Ride — GH₵ ' + price;
+}
+
+// ─── PAYMENT SELECTION ─────────────────────
+function selPay(type) {
+  ['cash','momo','card'].forEach(t => {
+    const el = document.getElementById('pay-'+t);
+    if(!el) return;
+    if(t === type) {
+      el.style.background = 'var(--orange-light)';
+      el.style.border = '1.5px solid rgba(232,93,4,.5)';
+    } else {
+      el.style.background = 'var(--card)';
+      el.style.border = '1.5px solid var(--border)';
+    }
+  });
+}
+
+// ─── PROMO ─────────────────────────────────
+function applyPromo() {
+  const code = document.getElementById('promo-code').value.trim().toUpperCase();
+  if (code === 'DSWIFT10') showToast('Promo Applied! 🎉', '10% discount on this ride');
+  else if (code === 'FIRSTRIDE') showToast('Free Ride! 🎁', 'First ride free up to GH₵ 20');
+  else showToast('Invalid Code', 'Check the promo code and try again');
+}
+
+// ─── DESTINATION SETTER ────────────────────
+let selectedDest = {name:'Ho Market', dist:'2.3 km', time:'7 min', price:'12.50'};
+function setDest(name, dist, time, price) {
+  selectedDest = {name, dist, time, price};
+  const d = document.getElementById('bk-dest');
+  const di = document.getElementById('bk-dist');
+  const ti = document.getElementById('bk-time');
+  const bk = document.getElementById('book-btn');
+  const rt = document.getElementById('bk-route');
+  if(d) d.textContent = name;
+  if(di) di.textContent = dist;
+  if(ti) ti.textContent = time;
+  if(bk) bk.textContent = 'Book Ride — GH₵ ' + price;
+  if(rt) rt.textContent = 'Ho Central → ' + name;
+  go('s-booking');
+}
+
+// ─── RATING STARS ──────────────────────────
+function rateStar(n) {
+  document.querySelectorAll('#star-row .star').forEach((s,i) => {
+    s.classList.toggle('on', i < n);
+  });
+}
+
+// ─── SOS ───────────────────────────────────
+function triggerSOS() {
+  showToast('🆘 SOS Sent!', 'D-Swift dispatch + your contacts notified');
+}
+
+// ─── LEAFLET MAP (HOME) ────────────────────
+let mapInit = false, map1;
+const HO = [6.6012, 0.4706]; // Ho, Ghana coordinates
+
+function initMap() {
+  if (mapInit) return;
+  mapInit = true;
+  try {
+    map1 = L.map('map', {
+      center: HO,
+      zoom: 14,
+      zoomControl: false,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map1);
+
+    // Dark overlay style via CSS filter on tiles
+    document.querySelectorAll('.leaflet-tile').forEach(t => {
+      t.style.filter = 'invert(0.9) hue-rotate(180deg) brightness(0.75) saturate(0.8)';
+    });
+
+    // User location pin
+    const userIcon = L.divIcon({
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:#E85D04;border:3px solid white;box-shadow:0 0 0 6px rgba(232,93,4,.25)"></div>`,
+      iconSize:[16,16], iconAnchor:[8,8], className:''
+    });
+    L.marker(HO, {icon:userIcon}).addTo(map1).bindPopup('<b>You are here</b><br>Ho Central');
+
+    // Driver icons
+    const drivers = [
+      {pos:[6.605, 0.468], name:'Ama Kodzi', status:'green'},
+      {pos:[6.598, 0.475], name:'Kofi Mensah', status:'green'},
+      {pos:[6.607, 0.463], name:'Yaw Agbesi', status:'yellow'},
+      {pos:[6.594, 0.466], name:'Abena Tornu', status:'green'},
+      {pos:[6.610, 0.472], name:'Edem Nutsugah', status:'green'},
+      {pos:[6.600, 0.480], name:'Dodzi Segbah', status:'yellow'},
+    ];
+
+    drivers.forEach(d => {
+      const icon = L.divIcon({
+        html: `<div style="width:30px;height:30px;border-radius:50%;background:${d.status==='green'?'#22C55E':'#EAB308'};border:2.5px solid white;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.4)">🚗</div>`,
+        iconSize:[30,30], iconAnchor:[15,15], className:''
+      });
+      L.marker(d.pos, {icon}).addTo(map1).bindPopup(`<b>${d.name}</b><br>${d.status === 'green' ? '✅ Available' : '🟡 On Trip'}`);
+    });
+
+    // Landmark markers
+    const places = [
+      {pos:[6.6018,0.4689], label:'Ho Market', icon:'🏪'},
+      {pos:[6.5950,0.4650], label:'Ho Hospital', icon:'🏥'},
+      {pos:[6.6080,0.4780], label:'HTU', icon:'🎓'},
+    ];
+    places.forEach(p => {
+      const ic = L.divIcon({
+        html:`<div style="background:var(--card,#1A1D26);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:3px 7px;font-size:11px;color:#F0F0F5;white-space:nowrap">${p.icon} ${p.label}</div>`,
+        className:'', iconAnchor:[40,12]
+      });
+      L.marker(p.pos, {icon:ic}).addTo(map1);
+    });
+
+    map1.on('tileload', function() {
+      document.querySelectorAll('.leaflet-tile').forEach(t => {
+        t.style.filter = 'invert(0.9) hue-rotate(180deg) brightness(0.7) saturate(0.7)';
+      });
+    });
+  } catch(e) { console.log('Map init error:', e); }
+}
+
+// ─── LEAFLET MAP (TRACKING) ────────────────
+let map2Init = false, map2;
+function initMap2() {
+  if (map2Init) return;
+  map2Init = true;
+  try {
+    map2 = L.map('map2', {
+      center: [6.6015, 0.4710],
+      zoom: 15,
+      zoomControl: false,
+      attributionControl: false
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map2);
+    map2.on('tileload', function() {
+      document.querySelectorAll('#map2 .leaflet-tile').forEach(t => {
+        t.style.filter = 'invert(0.9) hue-rotate(180deg) brightness(0.7) saturate(0.7)';
+      });
+    });
+
+    // Driver position
+    const driverIcon = L.divIcon({
+      html:`<div style="width:36px;height:36px;border-radius:50%;background:#E85D04;border:3px solid white;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 16px rgba(232,93,4,.5)">🚗</div>`,
+      iconSize:[36,36],iconAnchor:[18,18],className:''
+    });
+    const driverMarker = L.marker([6.603, 0.468], {icon:driverIcon}).addTo(map2);
+
+    // User position
+    const userIcon = L.divIcon({
+      html:`<div style="width:16px;height:16px;border-radius:50%;background:white;border:3px solid #E85D04;box-shadow:0 0 0 6px rgba(232,93,4,.2)"></div>`,
+      iconSize:[16,16],iconAnchor:[8,8],className:''
+    });
+    L.marker([6.6012, 0.4706], {icon:userIcon}).addTo(map2);
+
+    // Route line
+    const route = [[6.603,0.468],[6.602,0.470],[6.601,0.470],[6.6012,0.4706]];
+    L.polyline(route, {color:'#E85D04',weight:4,dashArray:'8,5',opacity:.9}).addTo(map2);
+
+    // Animate driver toward user
+    let step = 0;
+    const frames = [[6.603,0.468],[6.6025,0.469],[6.6018,0.470],[6.6012,0.4706]];
+    const animate = () => {
+      if (step < frames.length - 1) {
+        step++;
+        driverMarker.setLatLng(frames[step]);
+        setTimeout(animate, 2000);
+      }
+    };
+    setTimeout(animate, 1500);
+  } catch(e) { console.log('Map2 error:', e); }
+}
+
+// ─── MAP CONTROLS ──────────────────────────
+function mapZoomIn() { if(map1) map1.zoomIn(); }
+function mapZoomOut() { if(map1) map1.zoomOut(); }
+function mapCenter() { if(map1) map1.setView(HO, 14); }
+
+// ─── INIT MAP on first load ────────────────
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (document.getElementById('s-home').classList.contains('active')) initMap();
+  }, 300);
+});
+</script>
+</body>
+</html>
